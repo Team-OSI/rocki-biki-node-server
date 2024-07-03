@@ -40,7 +40,10 @@ io.on('connection', (socket) => {
       io.emit('ROOMS_UPDATE', rooms);
       socket.join(roomId);
       socket.roomId = roomId; // 소켓 객체에 roomId 저장
-      socket.isOwner = false; // 참가자는 소유자가 아님
+      if (socket.isOwner ){
+      }else{
+        socket.isOwner = false; // 참가자는 소유자가 아님
+      }
     }
   });
   socket.on('offer', (data) => {
@@ -55,18 +58,15 @@ io.on('connection', (socket) => {
     const { roomId, candidate } = data;
     socket.to(roomId).emit('candidate', { candidate });
   });
-  socket.on('message', (data) => {
-    console.log(`Message received in room ${data.sroomId}: ${data.mesage}`);
-    socket.to(data.roomId).emit('message', data);
-  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected');
     const roomId = socket.roomId;
     if (roomId) {
       const room = rooms.find(r => r.roomId === roomId);
       if (room) {
-        if (socket.isOwner) {
-          // 방장이 나가면 방을 삭제
+        console.log(room.participants)
+        if (room.participants === 1 && !socket.isOwner) {
           rooms = rooms.filter(r => r.roomId !== roomId);
         } else {
           // 참가자가 나가면 참가자 수를 줄임
@@ -80,5 +80,5 @@ io.on('connection', (socket) => {
     }
   });
 });
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 7777;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

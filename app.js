@@ -99,6 +99,11 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('useSkill', ({ roomId, skillType }) => {
+    console.log('Connected : ', {roomId, skillType});
+    socket.to(roomId).emit('opponentSkillUsed', { skillType: skillType });
+  });
+
   // socket.on('disconnect', () => {
   //   console.log('Client disconnected');
   //   const roomId = socket.roomId;

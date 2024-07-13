@@ -104,6 +104,14 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('opponentSkillUsed', { skillType: skillType });
   });
 
+  socket.on('ready', (data) => {
+    const { roomId, state } = data;
+    if (roomId) {
+      console.log('ready: ',roomId, state)
+      socket.to(roomId).emit('opponentIsReady', state);
+    }
+  });
+
   // socket.on('disconnect', () => {
   //   console.log('Client disconnected');
   //   const roomId = socket.roomId;

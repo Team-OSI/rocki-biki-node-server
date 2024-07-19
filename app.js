@@ -28,7 +28,7 @@ io.on('connection', (socket) => {
   socket.on('ADD_ROOM', (roomData, callback) => {
     // 게임룸 생성
     const roomId = uuidv4();
-    const newRoom = { ...roomData, players: [], game: null, owner: socket.id };
+    const newRoom = { ...roomData, players: [], playerInfo: [], game: null, owner: socket.id };
     rooms.set(roomId, newRoom);
     
     callback(roomId);
@@ -41,22 +41,28 @@ io.on('connection', (socket) => {
 
   });
 
-  socket.on('join room', (roomId) => {
+  socket.on('join room', (roomId, email, nickname, image) => {
     // 게임룸 입장
     const room = rooms.get(roomId);
     const roomsObject = Object.fromEntries(rooms);
     if (room && room.players.length < 2) {
       room.players.push(socket.id);
+      room.playerInfo.push({ socketId: socket.id, email, nickname, image });
       socket.join(roomId)
       socket.roomId = roomId; // 소켓 객체에 roomId 저장
       socket.isOwner = socket.id === room.owner;
 
-      io.emit('ROOMS_UPDATE', roomsObject); // 로비 게임룸 정보 업데이트
       if (room.players.length === 2){
         const [player1, player2] = room.players;
+        const [info1, info2] = room.playerInfo;
+
+        io.to(info1.socketId).emit("opponentInfo", info2);
+        io.to(info2.socketId).emit("opponentInfo", info1);
+
         room.game = new GameState(player1, player2);
         io.to(roomId).emit('gameState', room.game.getGameState());
       }
+      io.emit('ROOMS_UPDATE', roomsObject); // 로비 게임룸 정보 업데이트
     }
   });
 
@@ -82,12 +88,29 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('castSkill', ({ roomId, skillType }) => {
+  socket.on('castSkill', (data) => {
+    // 스킬을 시전하는 로직
+    const roomId = socket.roomId;
     const room = rooms.get(roomId);
+    console.log(data);
     if (room && room.game && room.game.gameStatus === 'playing') {
-      io.to(roomId).emit('opponentSkillUsed', { skillType: skillType });
+      const targetPlayerId = room.players.find(id => id !== socket.id);
+      console.log("skill:",data.skillType,"id:",targetPlayerId);
+      const newState = room.game.setPlayerCastSkill(targetPlayerId, data.skillType);
+      console.log("newState:",newState);
+      io.to(roomId).emit('gameState', newState );
     }
   });
+
+  // socket.on('castSkill', ({ skillType }) => {
+  //   // 스킬을 처리하는 로직
+  //   const roomId = socket.roomId;
+  //   const room = rooms.get(roomId);
+  //   if (room && room.game && room.game.gameStatus === 'playing') {
+  //     const newState = room.game.setPlayerSkill(socket.id, skillType);
+  //     io.to(roomId).emit('opponentSkillUsed', newState);
+  //   }
+  // });
 
   // socket.on('castSkill', ({ skillType }) => {
   //   const roomId = socket.roomId;
@@ -210,6 +233,11 @@ class GameState {
     } else {
       this.gameStatus = 'waiting'
     }
+    return this.getGameState();
+  }
+
+  setPlayerCastSkill(playerId, skillType) {
+    this.players[playerId].skill = [skillType,null];
     return this.getGameState();
   }
 

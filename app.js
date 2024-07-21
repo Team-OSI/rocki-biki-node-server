@@ -92,7 +92,6 @@ io.on('connection', (socket) => {
     // 스킬을 시전하는 로직
     const roomId = socket.roomId;
     const room = rooms.get(roomId);
-    console.log(data);
     if (room && room.game && room.game.gameStatus === 'playing') {
       const targetPlayerId = room.players.find(id => id !== socket.id);
       const newState = room.game.setPlayerCastSkill(targetPlayerId, data.skillType);

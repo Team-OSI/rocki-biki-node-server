@@ -129,27 +129,23 @@ io.on('connection', (socket) => {
       socket.leave(roomId);
       const room = rooms.get(roomId);
       if (room) {
-        room.players = room.players.filter(playerId => playerId !== socket.id);
-
-        if (socket.isOwner) {
-          const socketsInRoom = io.sockets.adapter.rooms.get(roomId);
-          if (socketsInRoom) {
-            socketsInRoom.forEach(socketId => {
-              const clientSocket = io.sockets.sockets.get(socketId);
-              if (clientSocket) {
-                clientSocket.leave(roomId);
-                clientSocket.emit('ROOM_CLOSE');
-              }
-            });
+        // 플레이어 제거
+        room.players = room.players.filter(id => id !== socket.id);
+        room.playerInfo = room.playerInfo.filter(info => info.socketId !== socket.id);
+  
+        // 방에 남은 플레이어가 없으면 방 삭제
+        if (room.players.length === 0) {
+          rooms.delete(roomId);
+        } else {
+          // 게임 중이었다면 게임 상태 업데이트
+          if (room.game && room.game.gameStatus === 'playing') {
+            room.game.gameStatus = 'finished';
+            room.game.winner = room.players[0]; // 남은 플레이어를 승자로 설정
+            io.to(roomId).emit('gameState', room.game.getGameState());
           }
-          rooms.delete(roomId);
-        } else if (room.players.length === 0) {
-          rooms.delete(roomId);
+          // 남은 플레이어에게 상대방 연결 끊김 알림
+          io.to(roomId).emit('opponentDisconnected', { disconnectedPlayerId: socket.id });
         }
-
-        const roomsObject = Object.fromEntries(rooms);
-        io.emit('ROOMS_UPDATE', roomsObject);
-        socket.to(roomId).emit('user_left', { userId: socket.id });
       }
     }
   });

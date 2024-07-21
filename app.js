@@ -88,20 +88,30 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('castSkill', ({ roomId, skillType }) => {
+  socket.on('castSkill', (data) => {
+    // 스킬을 시전하는 로직
+    const roomId = socket.roomId;
     const room = rooms.get(roomId);
+    console.log(data);
     if (room && room.game && room.game.gameStatus === 'playing') {
-      io.to(roomId).emit('opponentSkillUsed', { skillType: skillType });
+      const targetPlayerId = room.players.find(id => id !== socket.id);
+      const newState = room.game.setPlayerCastSkill(targetPlayerId, data.skillType);
+      console.log("newState:",newState);
+      io.to(roomId).emit('gameState', newState );
     }
   });
 
-  // socket.on('castSkill', ({ skillType }) => {
-  //   const roomId = socket.roomId;
-  //   const room = rooms.get(roomId);
-  //   if (room && room.game && room.game.gameStatus === 'playing') {
-  //     io.to(roomId).emit('opponentSkillUsed', { skillType: skillType });
-  //   }
-  // }) 
+  socket.on('useSkill', (data) => {
+    // 스킬을 처리하는 로직
+    const roomId = socket.roomId;
+    const room = rooms.get(roomId);
+    if (room && room.game && room.game.gameStatus === 'skillTime' || room.game.gameStatus === 'playing') {
+      const targetPlayerId = room.players.find(id => id !== socket.id);
+      console.log("skill:",data.skillType,"similarAverage:",data.similarAverage,"id:",targetPlayerId);
+      const newState = room.game.setPlayerUseSkill(targetPlayerId, data.skillType, data.similarAverage);
+      io.to(roomId).emit('gameState', newState);
+    }
+  });
 
   socket.on('start', () => {
     // 게임시작
@@ -216,6 +226,23 @@ class GameState {
     } else {
       this.gameStatus = 'waiting'
     }
+    return this.getGameState();
+  }
+
+  setPlayerCastSkill(playerId, skillType) {
+    this.gameStatus = 'skillTime';
+    this.players[playerId].skill = [skillType,null];
+    return this.getGameState();
+  }
+  
+  setPlayerUseSkill(playerId, skillType, similarAverage) {
+    this.gameStatus = 'playing';
+    this.players[playerId].skill = [skillType,similarAverage];
+    return this.getGameState();
+  }
+
+  setPlayerEndSkill(playerId) { 
+    this.players[playerId].skill = [null,null];
     return this.getGameState();
   }
 

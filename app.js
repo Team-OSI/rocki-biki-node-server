@@ -100,15 +100,28 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('useSkill', (data) => {
+   socket.on('useSkill', (data) => {
     // 스킬을 처리하는 로직
     const roomId = socket.roomId;
     const room = rooms.get(roomId);
-    if (room && room.game && room.game.gameStatus === 'skillTime' || room.game.gameStatus === 'playing') {
+    if (room && room.game && room.game.gameStatus === 'skillTime') {
       const targetPlayerId = room.players.find(id => id !== socket.id);
       console.log("skill:",data.skillType,"similarAverage:",data.similarAverage,"id:",targetPlayerId);
-      const newState = room.game.setPlayerUseSkill(targetPlayerId, data.skillType, data.similarAverage);
-      io.to(roomId).emit('gameState', newState);
+      // skill type 이 heal 일 경우 다르게 처리 바로 회복 ㄱㄱ
+
+      if (data.skillType === 'Heal'){
+        const newState = room.game.setPlayerHeal(targetPlayerId, data.similarAverage);
+        io.to(roomId).emit('gameState', newState);
+      }
+      else{
+        const newState = room.game.setPlayerUseSkill(targetPlayerId, data.skillType, data.similarAverage);
+        io.to(roomId).emit('gameState', newState);
+  
+        setTimeout(() => {
+          const returnState = room.game.setPlayerUseSkill(targetPlayerId, null, null);
+          io.to(roomId).emit('gameState', returnState);
+        }, 5000);
+      }
     }
   });
 
@@ -200,7 +213,11 @@ class GameState {
   }
 
   applyDamage(playerId, amount) {
-    this.players[playerId].health -= amount;
+    if(this.players[playerId].skill[0] === 'Attack'){
+      this.players[playerId].health -= ( amount + (amount * this.players[playerId].skill[1]) );
+    }else{
+      this.players[playerId].health -= amount;
+    }
     if (this.players[playerId].health <= 0) {
       this.gameStatus = 'finished';
       this.winner = Object.keys(this.players).find(id => id !== playerId);
@@ -233,6 +250,12 @@ class GameState {
   setPlayerUseSkill(playerId, skillType, similarAverage) {
     this.gameStatus = 'playing';
     this.players[playerId].skill = [skillType,similarAverage];
+    return this.getGameState();
+  }
+  
+  setPlayerHeal(playerId, similarAverage) {
+    this.gameStatus = 'playing';
+    this.players[playerId].health += ( 20 + (10 * similarAverage))
     return this.getGameState();
   }
 

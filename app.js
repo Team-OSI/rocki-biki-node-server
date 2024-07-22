@@ -110,7 +110,8 @@ io.on('connection', (socket) => {
       // skill type 이 heal 일 경우 다르게 처리 바로 회복 ㄱㄱ
 
       if (data.skillType === 'Heal'){
-        const newState = room.game.setPlayerHeal(targetPlayerId, data.similarAverage);
+        const currentPlayerId = socket.id;
+        const newState = room.game.setPlayerHeal(currentPlayerId, data.similarAverage);
         io.to(roomId).emit('gameState', newState);
       }
       else{

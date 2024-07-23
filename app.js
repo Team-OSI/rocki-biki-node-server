@@ -254,14 +254,19 @@ class GameState {
     return this.getGameState();
   }
   
+  // setPlayerHeal(playerId, similarAverage) {
+  //   this.gameStatus = 'playing';
+  //   if (similarAverage < 0.2){
+  //     return this.getGameState();
+  //   }else{
+  //     this.players[playerId].health += ( 20 + (10 * similarAverage))
+  //     return this.getGameState();
+  //   }
+  // }
+
   setPlayerHeal(playerId, similarAverage) {
-    this.gameStatus = 'playing';
-    if (similarAverage < 0.2){
-      return this.getGameState();
-    }else{
       this.players[playerId].health += ( 20 + (10 * similarAverage))
       return this.getGameState();
-    }
   }
 
   setPlayerEndSkill(playerId) { 

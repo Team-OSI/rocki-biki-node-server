@@ -265,6 +265,7 @@ class GameState {
   // }
 
   setPlayerHeal(playerId, similarAverage) {
+      this.gameStatus = 'playing';
       this.players[playerId].health += ( 20 + (10 * similarAverage))
       return this.getGameState();
   }

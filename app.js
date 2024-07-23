@@ -56,8 +56,8 @@ io.on('connection', (socket) => {
         const [player1, player2] = room.players;
         const [info1, info2] = room.playerInfo;
 
-        io.to(info1.socketId).emit("opponentInfo", info2);
-        io.to(info2.socketId).emit("opponentInfo", info1);
+        io.to(player1).emit("opponentInfo", info2);
+        io.to(player2).emit("opponentInfo", info1);
 
         room.game = new GameState(player1, player2);
         io.to(roomId).emit('gameState', room.game.getGameState());

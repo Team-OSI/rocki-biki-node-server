@@ -56,10 +56,11 @@ io.on('connection', (socket) => {
         const [player1, player2] = room.players;
         const [info1, info2] = room.playerInfo;
 
-        io.to(player1).emit("opponentInfo", info2);
-        io.to(player2).emit("opponentInfo", info1);
-
         room.game = new GameState(player1, player2);
+        setTimeout(()=>{
+          io.to(info1.socketId).emit("opponentInfo", info2);
+          io.to(info2.socketId).emit("opponentInfo", info1);
+        },1000) // 임시로 해결 추후 변경필요
         io.to(roomId).emit('gameState', room.game.getGameState());
       }
       io.emit('ROOMS_UPDATE', roomsObject); // 로비 게임룸 정보 업데이트
@@ -72,7 +73,7 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomId);
     if (room && room.game) {
       const newState = room.game.setPlayerReady(socket.id, data.state);
-      console.log(newState)
+      // console.log(newState)
       io.to(roomId).emit('gameState', newState)
     }
   });

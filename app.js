@@ -111,18 +111,19 @@ io.on('connection', (socket) => {
 
       if (data.skillType === 'Heal'){
         const currentPlayerId = socket.id;
-        const newState = room.game.setPlayerHeal(currentPlayerId, data.similarAverage);
+        const newState = room.game.setPlayerHeal(currentPlayerId, targetPlayerId, data.skillType, data.similarAverage);
         io.to(roomId).emit('gameState', newState);
       }
       else{
         const newState = room.game.setPlayerUseSkill(targetPlayerId, data.skillType, data.similarAverage);
         io.to(roomId).emit('gameState', newState);
   
-        setTimeout(() => {
-          const returnState = room.game.setPlayerUseSkill(targetPlayerId, null, null);
-          io.to(roomId).emit('gameState', returnState);
-        }, 5000);
       }
+
+      setTimeout(() => {
+        const returnState = room.game.setPlayerUseSkill(targetPlayerId, null, null);
+        io.to(roomId).emit('gameState', returnState);
+      }, 5000);
     }
   });
 
@@ -254,10 +255,20 @@ class GameState {
     return this.getGameState();
   }
   
-  setPlayerHeal(playerId, similarAverage) {
+  setPlayerHeal(currentPlayerId, opponentPlayerId, skillType, similarAverage) {
     this.gameStatus = 'playing';
-    this.players[playerId].health += ( 20 + (10 * similarAverage))
-    return this.getGameState();
+    if (similarAverage < 0.2){
+      this.players[opponentPlayerId].skill = [skillType,null];
+      return this.getGameState();
+    }else{
+      this.players[opponentPlayerId].skill = [skillType,null];
+      if(this.players[currentPlayerId].health += ( 20 + (10 * similarAverage)) >= 100){
+        this.players[currentPlayerId].health = 100;
+      }else{
+        this.players[currentPlayerId].health += ( 20 + (10 * similarAverage))
+      }
+      return this.getGameState();
+    }
   }
 
   setPlayerEndSkill(playerId) { 

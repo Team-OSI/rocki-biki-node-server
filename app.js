@@ -262,7 +262,11 @@ class GameState {
       return this.getGameState();
     }else{
       this.players[opponentPlayerId].skill = [skillType,null];
-      this.players[currentPlayerId].health += ( 20 + (10 * similarAverage))
+      if(this.players[currentPlayerId].health += ( 20 + (10 * similarAverage)) >= 100){
+        this.players[currentPlayerId].health = 100;
+      }else{
+        this.players[currentPlayerId].health += ( 20 + (10 * similarAverage))
+      }
       return this.getGameState();
     }
   }

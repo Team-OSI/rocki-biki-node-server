@@ -124,10 +124,12 @@ io.on('connection', (socket) => {
         const newState = room.game.setPlayerUseSkill(currentPlayerId, data.skillType, data.similarAverage);
         io.to(roomId).emit('gameState', newState);
         
-        setTimeout(() => {
-          const returnState = room.game.setPlayerUseSkill(currentPlayerId, null, null);
-          io.to(roomId).emit('gameState', returnState);
-        }, 8000);
+        if(room.game.gameStatus !== 'finished'){
+          setTimeout(() => {
+            const returnState = room.game.setPlayerUseSkill(currentPlayerId, null, null);
+            io.to(roomId).emit('gameState', returnState);
+          }, 8000);
+        }
       }
 
     }

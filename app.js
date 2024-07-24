@@ -60,15 +60,16 @@ io.on('connection', (socket) => {
         // io.to(info2.socketId).emit("opponentInfo", info1);
 
         room.game = new GameState(player1, player2);
+        io.to(roomId).emit('roomInfo', room);
 
         setTimeout(()=>{
           io.to(info1.socketId).emit("opponentInfo", info2);
           io.to(info2.socketId).emit("opponentInfo", info1);
-        },1000) // 임시로 해결 추후 변경필요
+        },2000) // 임시로 해결 추후 변경필요
 
         io.to(roomId).emit('gameState', room.game.getGameState());
       }
-
+      io.to(roomId).emit('roomInfo', room);
       io.emit('ROOMS_UPDATE', roomsObject); // 로비 게임룸 정보 업데이트
     }
   });
@@ -80,6 +81,7 @@ io.on('connection', (socket) => {
     if (room && room.game) {
       const newState = room.game.setPlayerReady(socket.id, data.state);
       console.log(newState)
+      io.to(roomId).emit('roomInfo', room);
       io.to(roomId).emit('gameState', newState)
     }
   });
@@ -100,9 +102,8 @@ io.on('connection', (socket) => {
     const roomId = socket.roomId;
     const room = rooms.get(roomId);
     if (room && room.game && room.game.gameStatus === 'playing') {
-      const targetPlayerId = room.players.find(id => id !== socket.id);
-      const newState = room.game.setPlayerCastSkill(targetPlayerId, data.skillType);
-      console.log("newState:",newState);
+      const currentPlayerId = socket.id;
+      const newState = room.game.setPlayerCastSkill(currentPlayerId, data.skillType);
       io.to(roomId).emit('gameState', newState );
     }
   });
@@ -112,24 +113,23 @@ io.on('connection', (socket) => {
     const roomId = socket.roomId;
     const room = rooms.get(roomId);
     if (room && room.game && room.game.gameStatus === 'skillTime') {
-      const targetPlayerId = room.players.find(id => id !== socket.id);
       const currentPlayerId = socket.id;
-      console.log("skill:",data.skillType,"similarAverage:",data.similarAverage,"id:",targetPlayerId);
+      console.log("skill:",data.skillType,"similarAverage:",data.similarAverage);
 
       if (data.skillType === 'Heal'){
-        const newState = room.game.setPlayerHeal(currentPlayerId, targetPlayerId, data.skillType, data.similarAverage);
+        const newState = room.game.setPlayerHeal(currentPlayerId, data.similarAverage);
         io.to(roomId).emit('gameState', newState);
       }
       else{
-        const newState = room.game.setPlayerUseSkill(currentPlayerId, targetPlayerId, data.skillType, data.similarAverage);
+        const newState = room.game.setPlayerUseSkill(currentPlayerId, data.skillType, data.similarAverage);
         io.to(roomId).emit('gameState', newState);
-  
+        
+        setTimeout(() => {
+          const returnState = room.game.setPlayerUseSkill(currentPlayerId, null, null);
+          io.to(roomId).emit('gameState', returnState);
+        }, 8000);
       }
 
-      setTimeout(() => {
-        const returnState = room.game.setPlayerUseSkill(currentPlayerId, targetPlayerId, null, null);
-        io.to(roomId).emit('gameState', returnState);
-      }, 8000);
     }
   });
 
@@ -141,6 +141,17 @@ io.on('connection', (socket) => {
       const newState = room.game.gameStart();
       io.to(roomId).emit('gameState', newState)
       io.to(roomId).emit('roomInfo', room);
+    }
+  })
+
+  socket.on('end', () => {
+    // 게임종료
+    const roomId = socket.roomId;
+    const room = rooms.get(roomId);
+    if (room && room.game) {
+      const newState = room.game.gameEnd();
+      console.log(newState)
+      io.to(roomId).emit('gameState', newState)
     }
   })
 
@@ -240,6 +251,23 @@ class GameState {
       return this.getGameState();
   }
 
+  gameEnd() {
+    this.gameStatus = 'finished';
+    const [player1Id, player2Id] = Object.keys(this.players);
+    const player1Health = this.players[player1Id].health;
+    const player2Health = this.players[player2Id].health;
+    
+    if (player1Health > player2Health) {
+      this.winner = player1Id;
+    } else if (player2Health > player1Health) {
+      this.winner = player2Id;
+    } 
+    // else {
+    //   this.winner = 'draw'; // 무승부 처리
+    // } 
+    return this.getGameState();
+  }
+
   setPlayerReady(playerId, state) {
     this.players[playerId].ready = state;
     if (Object.values(this.players).every(player => player.ready)) {
@@ -256,32 +284,25 @@ class GameState {
     return this.getGameState();
   }
   
-  setPlayerUseSkill(currentPlayerId, opponentPlayerId, skillType, similarAverage) {
+  setPlayerUseSkill(playerId, skillType, similarAverage) {
     this.gameStatus = 'playing';
-    this.players[currentPlayerId].skill = [skillType,similarAverage];
-    this.players[opponentPlayerId].skill = [skillType,similarAverage];
+    this.players[playerId].skill = [skillType,similarAverage];
     return this.getGameState();
   }
   
-  setPlayerHeal(currentPlayerId, opponentPlayerId, skillType, similarAverage) {
+  setPlayerHeal(playerId, similarAverage) {
     this.gameStatus = 'playing';
     if (similarAverage < 0.2){
-      this.players[opponentPlayerId].skill = [skillType,null];
       return this.getGameState();
     }else{
-      this.players[opponentPlayerId].skill = [skillType,null];
-      if(this.players[currentPlayerId].health += ( 10 + (10 * similarAverage)) >= 100){
-        this.players[currentPlayerId].health = 100;
-      }else{
-        this.players[currentPlayerId].health += ( 10 + (10 * similarAverage))
+      const healAmount = 10 + (10 * similarAverage);
+      if (this.players[playerId].health + healAmount >= 100) {
+          this.players[playerId].health = 100;
+      } else {
+          this.players[playerId].health += healAmount;
       }
       return this.getGameState();
     }
-  }
-
-  setPlayerEndSkill(playerId) { 
-    this.players[playerId].skill = [null,null];
-    return this.getGameState();
   }
 
   getGameState() {

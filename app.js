@@ -60,15 +60,16 @@ io.on('connection', (socket) => {
         // io.to(info2.socketId).emit("opponentInfo", info1);
 
         room.game = new GameState(player1, player2);
+        io.to(roomId).emit('roomInfo', room);
 
         setTimeout(()=>{
           io.to(info1.socketId).emit("opponentInfo", info2);
           io.to(info2.socketId).emit("opponentInfo", info1);
-        },1000) // 임시로 해결 추후 변경필요
+        },2000) // 임시로 해결 추후 변경필요
 
         io.to(roomId).emit('gameState', room.game.getGameState());
       }
-
+      io.to(roomId).emit('roomInfo', room);
       io.emit('ROOMS_UPDATE', roomsObject); // 로비 게임룸 정보 업데이트
     }
   });
@@ -80,6 +81,7 @@ io.on('connection', (socket) => {
     if (room && room.game) {
       const newState = room.game.setPlayerReady(socket.id, data.state);
       console.log(newState)
+      io.to(roomId).emit('roomInfo', room);
       io.to(roomId).emit('gameState', newState)
     }
   });
@@ -122,10 +124,12 @@ io.on('connection', (socket) => {
         const newState = room.game.setPlayerUseSkill(currentPlayerId, data.skillType, data.similarAverage);
         io.to(roomId).emit('gameState', newState);
         
-        setTimeout(() => {
-          const returnState = room.game.setPlayerUseSkill(currentPlayerId, null, null);
-          io.to(roomId).emit('gameState', returnState);
-        }, 8000);
+        if(room.game.gameStatus !== 'finished'){
+          setTimeout(() => {
+            const returnState = room.game.setPlayerUseSkill(currentPlayerId, null, null);
+            io.to(roomId).emit('gameState', returnState);
+          }, 8000);
+        }
       }
 
     }

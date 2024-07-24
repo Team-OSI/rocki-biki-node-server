@@ -51,7 +51,7 @@ io.on('connection', (socket) => {
       socket.join(roomId)
       socket.roomId = roomId; // 소켓 객체에 roomId 저장
       socket.isOwner = socket.id === room.owner;
-
+      
       if (room.players.length === 2){
         const [player1, player2] = room.players;
         const [info1, info2] = room.playerInfo;
@@ -68,6 +68,7 @@ io.on('connection', (socket) => {
 
         io.to(roomId).emit('gameState', room.game.getGameState());
       }
+
       io.emit('ROOMS_UPDATE', roomsObject); // 로비 게임룸 정보 업데이트
     }
   });
@@ -114,7 +115,6 @@ io.on('connection', (socket) => {
       const targetPlayerId = room.players.find(id => id !== socket.id);
       const currentPlayerId = socket.id;
       console.log("skill:",data.skillType,"similarAverage:",data.similarAverage,"id:",targetPlayerId);
-      // skill type 이 heal 일 경우 다르게 처리 바로 회복 ㄱㄱ
 
       if (data.skillType === 'Heal'){
         const newState = room.game.setPlayerHeal(currentPlayerId, targetPlayerId, data.skillType, data.similarAverage);
@@ -129,7 +129,7 @@ io.on('connection', (socket) => {
       setTimeout(() => {
         const returnState = room.game.setPlayerUseSkill(currentPlayerId, targetPlayerId, null, null);
         io.to(roomId).emit('gameState', returnState);
-      }, 7000);
+      }, 8000);
     }
   });
 
@@ -140,6 +140,7 @@ io.on('connection', (socket) => {
     if (room && room.game) {
       const newState = room.game.gameStart();
       io.to(roomId).emit('gameState', newState)
+      io.to(roomId).emit('roomInfo', room);
     }
   })
 
@@ -213,8 +214,8 @@ server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 class GameState {
   constructor(player1Id, player2Id) {
     this.players = {
-      [player1Id]: { health: 100, ready: false, skill: [null, null]},
-      [player2Id]: { health: 100, ready: false, skill: [null, null]}
+      [player1Id]: { health: 100, ready: false, skill: [null, null], },
+      [player2Id]: { health: 100, ready: false, skill: [null, null], }
     };
     this.gameStatus = 'waiting'; // 'waiting', 'bothReady' ,'playing', 'skillTime' ,'finished', 'replaying'
     this.winner = null;

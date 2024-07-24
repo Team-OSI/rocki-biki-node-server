@@ -142,6 +142,17 @@ io.on('connection', (socket) => {
     }
   })
 
+  socket.on('end', () => {
+    // 게임종료
+    const roomId = socket.roomId;
+    const room = rooms.get(roomId);
+    if (room && room.game) {
+      const newState = room.game.gameEnd();
+      console.log(newState)
+      io.to(roomId).emit('gameState', newState)
+    }
+  })
+
 
   socket.on('leave room', () => {
     const roomId = socket.roomId;
@@ -238,6 +249,23 @@ class GameState {
       return this.getGameState();
   }
 
+  gameEnd() {
+    this.gameStatus = 'finished';
+    const [player1Id, player2Id] = Object.keys(this.players);
+    const player1Health = this.players[player1Id].health;
+    const player2Health = this.players[player2Id].health;
+    
+    if (player1Health > player2Health) {
+      this.winner = player1Id;
+    } else if (player2Health > player1Health) {
+      this.winner = player2Id;
+    } 
+    // else {
+    //   this.winner = 'draw'; // 무승부 처리
+    // } 
+    return this.getGameState();
+  }
+
   setPlayerReady(playerId, state) {
     this.players[playerId].ready = state;
     if (Object.values(this.players).every(player => player.ready)) {
@@ -273,11 +301,6 @@ class GameState {
       }
       return this.getGameState();
     }
-  }
-
-  setPlayerEndSkill(playerId) { 
-    this.players[playerId].skill = [null,null];
-    return this.getGameState();
   }
 
   getGameState() {

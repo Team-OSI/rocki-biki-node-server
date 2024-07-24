@@ -100,9 +100,8 @@ io.on('connection', (socket) => {
     const roomId = socket.roomId;
     const room = rooms.get(roomId);
     if (room && room.game && room.game.gameStatus === 'playing') {
-      const targetPlayerId = room.players.find(id => id !== socket.id);
-      const newState = room.game.setPlayerCastSkill(targetPlayerId, data.skillType);
-      console.log("newState:",newState);
+      const currentPlayerId = socket.id;
+      const newState = room.game.setPlayerCastSkill(currentPlayerId, data.skillType);
       io.to(roomId).emit('gameState', newState );
     }
   });
@@ -112,24 +111,23 @@ io.on('connection', (socket) => {
     const roomId = socket.roomId;
     const room = rooms.get(roomId);
     if (room && room.game && room.game.gameStatus === 'skillTime') {
-      const targetPlayerId = room.players.find(id => id !== socket.id);
       const currentPlayerId = socket.id;
-      console.log("skill:",data.skillType,"similarAverage:",data.similarAverage,"id:",targetPlayerId);
+      console.log("skill:",data.skillType,"similarAverage:",data.similarAverage);
 
       if (data.skillType === 'Heal'){
-        const newState = room.game.setPlayerHeal(currentPlayerId, targetPlayerId, data.skillType, data.similarAverage);
+        const newState = room.game.setPlayerHeal(currentPlayerId, data.similarAverage);
         io.to(roomId).emit('gameState', newState);
       }
       else{
-        const newState = room.game.setPlayerUseSkill(currentPlayerId, targetPlayerId, data.skillType, data.similarAverage);
+        const newState = room.game.setPlayerUseSkill(currentPlayerId, data.skillType, data.similarAverage);
         io.to(roomId).emit('gameState', newState);
-  
+        
+        setTimeout(() => {
+          const returnState = room.game.setPlayerUseSkill(currentPlayerId, null, null);
+          io.to(roomId).emit('gameState', returnState);
+        }, 8000);
       }
 
-      setTimeout(() => {
-        const returnState = room.game.setPlayerUseSkill(currentPlayerId, targetPlayerId, null, null);
-        io.to(roomId).emit('gameState', returnState);
-      }, 8000);
     }
   });
 
@@ -256,24 +254,22 @@ class GameState {
     return this.getGameState();
   }
   
-  setPlayerUseSkill(currentPlayerId, opponentPlayerId, skillType, similarAverage) {
+  setPlayerUseSkill(playerId, skillType, similarAverage) {
     this.gameStatus = 'playing';
-    this.players[currentPlayerId].skill = [skillType,similarAverage];
-    this.players[opponentPlayerId].skill = [skillType,similarAverage];
+    this.players[playerId].skill = [skillType,similarAverage];
     return this.getGameState();
   }
   
-  setPlayerHeal(currentPlayerId, opponentPlayerId, skillType, similarAverage) {
+  setPlayerHeal(playerId, similarAverage) {
     this.gameStatus = 'playing';
     if (similarAverage < 0.2){
-      this.players[opponentPlayerId].skill = [skillType,null];
       return this.getGameState();
     }else{
-      this.players[opponentPlayerId].skill = [skillType,null];
-      if(this.players[currentPlayerId].health += ( 10 + (10 * similarAverage)) >= 100){
-        this.players[currentPlayerId].health = 100;
-      }else{
-        this.players[currentPlayerId].health += ( 10 + (10 * similarAverage))
+      const healAmount = 10 + (10 * similarAverage);
+      if (this.players[playerId].health + healAmount >= 100) {
+          this.players[playerId].health = 100;
+      } else {
+          this.players[playerId].health += healAmount;
       }
       return this.getGameState();
     }

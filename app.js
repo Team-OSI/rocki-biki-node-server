@@ -108,30 +108,29 @@ io.on('connection', (socket) => {
     }
   });
 
-   socket.on('useSkill', (data) => {
+  socket.on('useSkill', (data) => {
     // 스킬을 처리하는 로직
     const roomId = socket.roomId;
     const room = rooms.get(roomId);
     if (room && room.game && room.game.gameStatus === 'skillTime') {
       const currentPlayerId = socket.id;
-      console.log("skill:",data.skillType,"similarAverage:",data.similarAverage);
+      console.log("skill:", data.skillType, "similarAverage:", data.similarAverage);
 
-      if (data.skillType === 'Heal'){
+      if (data.skillType === 'Heal') {
         const newState = room.game.setPlayerHeal(currentPlayerId, data.similarAverage);
         io.to(roomId).emit('gameState', newState);
-      }
-      else{
+      } else {
         const newState = room.game.setPlayerUseSkill(currentPlayerId, data.skillType, data.similarAverage);
         io.to(roomId).emit('gameState', newState);
-        
-        if(room.game.gameStatus !== 'finished'){
-          setTimeout(() => {
+
+        setTimeout(() => {
+          const currentRoom = rooms.get(roomId);
+          if (currentRoom && currentRoom.game && currentRoom.game.gameStatus !== 'finished') {
             const returnState = room.game.setPlayerUseSkill(currentPlayerId, null, null);
             io.to(roomId).emit('gameState', returnState);
-          }, 8000);
-        }
+          }
+        }, 8000);
       }
-
     }
   });
 

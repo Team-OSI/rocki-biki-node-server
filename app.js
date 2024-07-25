@@ -90,9 +90,10 @@ io.on('connection', (socket) => {
     // 데미지를 처리하는 로직
     const roomId = socket.roomId;
     const room = rooms.get(roomId);
+    const currentPlayerId = socket.id;
     if (room && room.game && room.game.gameStatus === 'playing') {
       const targetPlayerId = room.players.find(id => id !== socket.id);
-      const newState = room.game.applyDamage(targetPlayerId, data.amount);
+      const newState = room.game.applyDamage(currentPlayerId, targetPlayerId, data.amount);
       io.to(roomId).emit('gameState', newState)
     }
   });
@@ -233,15 +234,15 @@ class GameState {
     this.winner = null;
   }
 
-  applyDamage(playerId, amount) {
-    if(this.players[playerId].skill[0] === 'Attack'){
-      this.players[playerId].health -= ( amount + (amount * this.players[playerId].skill[1]) );
+  applyDamage(currentPlayerId, opponentPlayerId, amount) {
+    if(this.players[currentPlayerId].skill[0] === 'Attack'){
+      this.players[opponentPlayerId].health -= ( amount + (amount * this.players[currentPlayerId].skill[1]) );
     }else{
-      this.players[playerId].health -= amount;
+      this.players[opponentPlayerId].health -= amount;
     }
-    if (this.players[playerId].health <= 0) {
+    if (this.players[opponentPlayerId].health <= 0) {
       this.gameStatus = 'finished';
-      this.winner = Object.keys(this.players).find(id => id !== playerId);
+      this.winner = Object.keys(this.players).find(id => id !==opponentPlayerId);
     }
     return this.getGameState();
   }

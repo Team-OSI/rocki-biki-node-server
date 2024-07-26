@@ -127,8 +127,8 @@ io.on('connection', (socket) => {
         setTimeout(() => {
           const currentRoom = rooms.get(roomId);
           if (currentRoom && currentRoom.game && currentRoom.game.gameStatus !== 'finished') {
-            const returnState = room.game.setPlayerUseSkill(currentPlayerId, null, null);
             returnState.gameStatus = currentRoom.game.gameStatus;
+            const returnState = room.game.setPlayerUseSkill(currentPlayerId, null, null);
             io.to(roomId).emit('gameState', returnState);
           }
         }, 8000);

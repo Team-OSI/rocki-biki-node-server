@@ -113,13 +113,15 @@ io.on('connection', (socket) => {
     // 스킬을 처리하는 로직
     const roomId = socket.roomId;
     const room = rooms.get(roomId);
-    if (room && room.game && room.game.gameStatus === 'skillTime') {
+    if (room && room.game) {
       const currentPlayerId = socket.id;
       console.log("skill:", data.skillType, "similarAverage:", data.similarAverage);
 
       if (data.skillType === 'Heal') {
         const newState = room.game.setPlayerHeal(currentPlayerId, data.similarAverage);
         io.to(roomId).emit('gameState', newState);
+        const returnState = room.game.setPlayerUseSkill(currentPlayerId, null, null);
+        io.to(roomId).emit('gameState', returnState);
       } else {
         const newState = room.game.setPlayerUseSkill(currentPlayerId, data.skillType, data.similarAverage);
         io.to(roomId).emit('gameState', newState);
@@ -127,9 +129,13 @@ io.on('connection', (socket) => {
         setTimeout(() => {
           const currentRoom = rooms.get(roomId);
           if (currentRoom && currentRoom.game && currentRoom.game.gameStatus !== 'finished') {
-            returnState.gameStatus = currentRoom.game.gameStatus;
-            const returnState = room.game.setPlayerUseSkill(currentPlayerId, null, null);
-            io.to(roomId).emit('gameState', returnState);
+            if (currentRoom.game.gameStatus === 'skillTime') {
+              const returnState = room.game.setPlayerUseSkill_skillTime(currentPlayerId, null, null);
+              io.to(roomId).emit('gameState', returnState);
+            } else {
+              const returnState = room.game.setPlayerUseSkill(currentPlayerId, null, null);
+              io.to(roomId).emit('gameState', returnState);
+            }
           }
         }, 8000);
       }
@@ -289,6 +295,12 @@ class GameState {
   
   setPlayerUseSkill(playerId, skillType, similarAverage) {
     this.gameStatus = 'playing';
+    this.players[playerId].skill = [skillType,similarAverage];
+    return this.getGameState();
+  }
+
+  setPlayerUseSkill_skillTime(playerId, skillType, similarAverage) {
+    this.gameStatus = 'skillTime';
     this.players[playerId].skill = [skillType,similarAverage];
     return this.getGameState();
   }
